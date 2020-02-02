@@ -23,7 +23,7 @@ u32 PLAYER_LAYER = 3;
 
 struct Bullet : public Logic::Entity {
     Physics::Body body;
-    f32 offset = 0.20;
+    f32 offset = 0.25;
     f32 size = 0.10;
     f32 lifetime = 5.0;
     f32 speed = 4.0;
@@ -97,13 +97,14 @@ struct Robot : public Logic::Entity {
     f32 gravity = 6.0;
     f32 jump_speed = 2.4;
     f32 dash_vel_up = 0.4;
-    f32 dash_vel = 6.6;
+    f32 dash_vel = 5.1;
     f32 acc;
     bool jumping;
-    bool dash;
     bool grounded_last_frame;
     Physics::Body body;
     Logic::EntityID *other_id;
+    f32 time_to_dash = 0.5;
+    f32 dash_timer;
     f32 time_to_reload = 0.6;
     f32 reload_timer;
     u32 max_magasin = 3;
@@ -151,7 +152,6 @@ void Robot::update(f32 delta) {
     for (u32 i = 0; i < LEN(grounds); i++) {
         Physics::Overlap overlap = Physics::check_overlap(&grounds[i], &body);
         if (overlap) {
-            dash = true;
             Physics::solve(overlap);
             grounded |= overlap.normal.y > 0.2;
             if (Input::pressed(Input::Name::JUMP, player) && overlap.normal.y > 0.2) {
@@ -163,17 +163,27 @@ void Robot::update(f32 delta) {
     }
     if (grounded && !grounded_last_frame) {
         land_particles.position = body.position + V2(0, -0.11);
+        land_particles.velocity_dir = {-PI, 0};
         for (u32 i = 0; i < 8; i++) {
             land_particles.spawn();
         }
         Mixer::play_sound(0, ASSET_GROUND_HIT);
     }
     grounded_last_frame = grounded;
-    if (Input::pressed(Input::Name::DIVE, player) && dash && !grounded) {
-        dash = false;
+    if (Input::pressed(Input::Name::DIVE, player) && dash_timer < Logic::now()) {
+        dash_timer = Logic::now() + time_to_dash;
         f32 dir = SIGN(movement + 0.1);
         body.velocity = V2(dir * dash_vel, dash_vel_up);
         Mixer::play_sound(0, ASSET_JUMP, 1.2);
+
+        land_particles.position = body.position + V2(0, -0.11);
+        if (dir > 0)
+            land_particles.velocity_dir = {-PI / 2, PI / 2};
+        else
+            land_particles.velocity_dir = {PI / 2, 6 * PI / 4};
+        for (u32 i = 0; i < 12; i++) {
+            land_particles.spawn();
+        }
     }
 
     if (jumping && Input::down(Input::Name::JUMP, player) && body.velocity.y > 0) {
@@ -182,7 +192,7 @@ void Robot::update(f32 delta) {
         jumping = false;
     }
 
-    if (Input::pressed(Input::Name::SHOOT, player) && magazin) {
+    if (Input::pressed(Input::Name::SHOOT, player) && magazin && Logic::valid_entity(*other_id)) {
         Vec2 target = V2(0, 0);
         if (Logic::valid_entity(*other_id))
             target = Logic::fetch_entity<Robot>(*other_id)->body.position;
@@ -220,6 +230,8 @@ void entity_registration() {
 Logic::EntityID player1;
 Logic::EntityID player2;
 
+u32 score[2];
+
 Vec2 spawn_points[] = {
     V2(-2, -0.4),
     V2(-1.3, -0.4),
@@ -227,24 +239,19 @@ Vec2 spawn_points[] = {
     V2( 2, -0.4),
 };
 
-void spawn_player(Vec2 away_from, Input::Player player) {
-    const f32 MIN_DIST = 1.0;
-    while (true) {
-        Vec2 at = spawn_points[random_int() % LEN(spawn_points)];
-        if (length(away_from - at) > MIN_DIST) {
-            Robot robot = {};
-            if (Input::Player::P1 == player) {
-                robot.init(Input::Player::P1, &player2);
-                robot.body.position = at;
-                player1 = Logic::add_entity(robot);
-            } else {
-                robot.init(Input::Player::P2, &player1);
-                robot.body.position = at;
-                player2 = Logic::add_entity(robot);
-            }
-            return;
-        }
+void spawn_player(Input::Player player) {
+    Vec2 at = spawn_points[random_int() % LEN(spawn_points)];
+    Robot robot = {};
+    if (Input::Player::P1 == player) {
+        robot.init(Input::Player::P1, &player2);
+        robot.body.position = at;
+        player1 = Logic::add_entity(robot);
+    } else {
+        robot.init(Input::Player::P2, &player1);
+        robot.body.position = at;
+        player2 = Logic::add_entity(robot);
     }
+    return;
 }
 
 void setup() {
@@ -345,10 +352,13 @@ void setup() {
         grounds[1].position.y = -0.5;
     }
 
-    spawn_player(V2(0, 0), Input::Player::P1);
+    spawn_player(Input::Player::P1);
     Vec2 other_pos = Logic::fetch_entity<Robot>(player1)->body.position;
-    spawn_player(other_pos, Input::Player::P2);
+    spawn_player(Input::Player::P2);
 }
+
+bool will_spawn_p1 = false;
+bool will_spawn_p2 = false;
 
 // Main logic
 void update(f32 delta) {
@@ -367,14 +377,22 @@ void update(f32 delta) {
     if (Logic::valid_entity(player2))
         positions[1] = Logic::fetch_entity<Robot>(player2)->body.position;
 
-    if (!Logic::valid_entity(player1)) {
-        spawn_player(positions[1], Input::Player::P1);
-        positions[0] = Logic::fetch_entity<Robot>(player1)->body.position;
+    if (!Logic::valid_entity(player1) && !will_spawn_p1) {
+        will_spawn_p1 = true;
+        auto spawner = []() {
+            will_spawn_p1 = false;
+            spawn_player(Input::Player::P1);
+        };
+        Logic::add_callback(Logic::PRE_UPDATE, spawner, Logic::now() + 0.5);
     }
 
-    if (!Logic::valid_entity(player2)) {
-        spawn_player(positions[0], Input::Player::P2);
-        positions[1] = Logic::fetch_entity<Robot>(player2)->body.position;
+    if (!Logic::valid_entity(player2) && !will_spawn_p2) {
+        will_spawn_p2 = true;
+        auto spawner = []() {
+            will_spawn_p2 = false;
+            spawn_player(Input::Player::P2);
+        };
+        Logic::add_callback(Logic::PRE_UPDATE, spawner, Logic::now() + 0.5);
     }
 
     static f32 offset = 0.75;
