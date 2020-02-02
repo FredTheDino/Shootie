@@ -36,14 +36,6 @@ void setup() {
 
     global_editor.selected = Util::create_list<Logic::EntityID>(50);
     global_editor.edits = Util::create_list<EditorEdit>(50);
-
-    for (u32 i = 0; i < 3; i++) {
-        Game::MyEnt e = {};
-        e.value = 0;
-        e.position = random_unit_vec2();
-        e.scale = {1, 1};
-        Logic::add_entity(e);
-    }
 }
 
 void select_func(bool clean) {

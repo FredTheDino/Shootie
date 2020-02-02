@@ -23,13 +23,12 @@ namespace Input {
         /* --------- Your bindings go bellow this line --------- */
 
         LEFT_RIGHT,
-        UP_DOWN,
-        SEL,
-
         LEFT,
         RIGHT,
-        UP,
-        DOWN,
+
+        JUMP,
+        DIVE,
+        SHOOT,
 
         /* ---------------- And above this line ---------------- */
 
@@ -81,8 +80,8 @@ namespace Perf {
 namespace Logic {
     enum class EntityType {
         BASE,
-        A_TYPE,
-        MY_ENT,
+        ROBOT,
+        BULLET,
 
         NUM_ENTITY_TYPES, // Don't write anything after this.
     };
