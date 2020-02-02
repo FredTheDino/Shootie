@@ -404,7 +404,7 @@ void update(f32 delta) {
     bullet_particles.update(delta);
     land_particles.update(delta);
     hit_particles.update(delta);
-    LOG("%d, %d", score[0], score[1]);
+
 }
 
 // Main draw
@@ -414,6 +414,11 @@ void draw() {
     hit_particles.draw();
     Renderer::push_rectangle(0, grounds[0].position, grounds[0].scale);
     Renderer::push_rectangle(0, grounds[1].position, grounds[1].scale);
+
+    const char *p1_score = Util::format("%d", score[0]);
+    const char *p2_score = Util::format("%d", score[1]);
+    Renderer::draw_text(p1_score, -0.8, 0.5, 1.0, ASSET_MONACO_FONT, 0.0, PLAYER_COLORS[1]);
+    Renderer::draw_text(p2_score,  0.8, 0.5, 1.0, ASSET_MONACO_FONT, 0.0, PLAYER_COLORS[0]);
 }
 
 }  // namespace Game
