@@ -166,18 +166,19 @@ void poll_events() {
             case (SDL_CONTROLLERDEVICEADDED): {
                 s32 which = event.cdevice.which;
                 const char *name = SDL_GameControllerNameForIndex(which);
+                LOG("ADDED CONTROLLER!");
                 if (Util::contains_substr(name, "PS4")) {
                     // NOTE(ed): I know this looks wierd... But
                     // for some reason PS4 controllers are 2 devices
                     // on Linux, this filters out the second one
                     // which looks to be useless (I think it's the
                     // motion controlls).
-                    static bool skipp = false;
-                    if (skipp) {
-                        skipp = false;
-                        break;
-                    }
-                    skipp = true;
+                    // static bool skipp = false;
+                    // if (skipp) {
+                    //     skipp = false;
+                    //     break;
+                    // }
+                    // skipp = true;
                 }
                 register_controller(which);
             } break;
