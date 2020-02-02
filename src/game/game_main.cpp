@@ -11,6 +11,10 @@ const Vec4 PLAYER_COLORS[] = {
     V4(0.8, 0.3, 0.3, 1.0),
 };
 
+Renderer::ParticleSystem bullet_particles;
+Renderer::ParticleSystem land_particles;
+Renderer::ParticleSystem hit_particles;
+
 Physics::ShapeID rect_shape;
 Physics::ShapeID triangle_shape;
 Physics::Body grounds[2];
@@ -48,11 +52,18 @@ void Bullet::init(Vec2 from, Vec2 target) {
 void Bullet::destroy() {
     Mixer::play_sound(0, ASSET_HIT);
     Logic::remove_entity(id);
+
+    hit_particles.position = body.position;
+    for (u32 i = 0; i < 20; i++) {
+        hit_particles.spawn();
+    }
 }
 
 void Bullet::update(f32 delta) {
     Physics::integrate(&body, delta);
     life -= delta;
+    bullet_particles.position = body.position;
+    bullet_particles.spawn();
     if (life < 0) {
         destroy();
         return;
@@ -63,6 +74,17 @@ void Bullet::update(f32 delta) {
             return;
         }
     }
+    auto bullet_check = [this](Logic::Entity *e) {
+        Bullet *bullet = (Bullet *) e;
+        if (e == this) return false;
+        if (Physics::check_overlap(&bullet->body, &this->body)) {
+            bullet->destroy();
+            this->destroy();
+            return true;
+        }
+        return false;
+    };
+    Logic::for_entity_of_type(Logic::EntityType::BULLET, bullet_check);
 }
 
 void Bullet::draw() {
@@ -75,7 +97,7 @@ struct Robot : public Logic::Entity {
     f32 gravity = 6.0;
     f32 jump_speed = 2.4;
     f32 dash_vel_up = 0.4;
-    f32 dash_vel = 2.6;
+    f32 dash_vel = 6.6;
     f32 acc;
     bool jumping;
     bool dash;
@@ -140,6 +162,10 @@ void Robot::update(f32 delta) {
         }
     }
     if (grounded && !grounded_last_frame) {
+        land_particles.position = body.position + V2(0, -0.11);
+        for (u32 i = 0; i < 8; i++) {
+            land_particles.spawn();
+        }
         Mixer::play_sound(0, ASSET_GROUND_HIT);
     }
     grounded_last_frame = grounded;
@@ -173,7 +199,7 @@ void Robot::update(f32 delta) {
     auto bullet_check = [this](Logic::Entity *e) {
         Bullet *bullet = (Bullet *) e;
         if (Physics::check_overlap(&bullet->body, &this->body)) {
-            Logic::remove_entity(e->id);
+            bullet->destroy();
             Logic::remove_entity(this->id);
         }
         return false;
@@ -228,6 +254,44 @@ void setup() {
     Renderer::turn_on_camera(0);
     Renderer::get_camera(0)->zoom = 0.75;
 
+    bullet_particles = Renderer::create_particle_system(1, 500, V2(0, 0));
+    bullet_particles.one_color = true;
+    bullet_particles.alive_time = {0.8, 1.3};
+    bullet_particles.spawn_size = {0.05, 0.03};
+    bullet_particles.velocity = {0, 0};
+    bullet_particles.acceleration = {0.1, 0.2};
+    bullet_particles.spawn_red = {BULLET_COLOR.x, BULLET_COLOR.x};
+    bullet_particles.spawn_green = {BULLET_COLOR.y, BULLET_COLOR.y};
+    bullet_particles.spawn_blue = {BULLET_COLOR.z, BULLET_COLOR.z};
+    bullet_particles.spawn_alpha = {1, 1};
+    bullet_particles.die_alpha = {0, 0};
+
+    hit_particles = Renderer::create_particle_system(1, 500, V2(0, 0));
+    hit_particles.one_color = true;
+    hit_particles.alive_time = {0.6, 1.1};
+    hit_particles.spawn_size = {0.05, 0.03};
+    hit_particles.velocity_dir = {0, 2 * PI};
+    hit_particles.velocity = {0.4, 0.6};
+    hit_particles.acceleration = {0.1, 0.2};
+    hit_particles.spawn_red = {BULLET_COLOR.x, BULLET_COLOR.x};
+    hit_particles.spawn_green = {BULLET_COLOR.y, BULLET_COLOR.y};
+    hit_particles.spawn_blue = {BULLET_COLOR.z, BULLET_COLOR.z};
+    hit_particles.spawn_alpha = {1, 1};
+    hit_particles.die_alpha = {0, 0};
+
+    land_particles = Renderer::create_particle_system(7, 100, V2(0, 0));
+    land_particles.one_color = true;
+    land_particles.alive_time = {0.2, 0.4};
+    land_particles.spawn_size = {0.00, 0.00};
+    land_particles.die_size = {0.01, 0.04};
+    land_particles.velocity = {0.2, 0.3};
+    land_particles.velocity_dir = {-PI, 0};
+    land_particles.spawn_red = {0.5, 0.5};
+    land_particles.spawn_green = {0.5, 0.5};
+    land_particles.spawn_blue = {0.5, 0.5};
+    land_particles.spawn_alpha = {1.0, 1.0};
+    land_particles.die_alpha = {0.0, 0.0};
+
     using namespace Input;
     add(K(a), Name::LEFT,  Player::P1);
     add(K(d), Name::RIGHT, Player::P1);
@@ -240,6 +304,8 @@ void setup() {
     add(B(DPAD_RIGHT, Player::P1), Name::RIGHT, Player::P1);
     add(B(A, Player::P1), Name::JUMP, Player::P1);
     add(B(B, Player::P1), Name::DIVE, Player::P1);
+    add(B(X, Player::P1), Name::DIVE, Player::P1);
+    add(B(Y, Player::P1), Name::DIVE, Player::P1);
     add(B(RIGHTSHOULDER, Player::P1), Name::SHOOT, Player::P1);
 
     add(A(LEFTX, Player::P2), Name::LEFT_RIGHT, Player::P2);
@@ -247,6 +313,9 @@ void setup() {
     add(B(DPAD_RIGHT, Player::P2), Name::RIGHT, Player::P2);
     add(B(A, Player::P2), Name::JUMP, Player::P2);
     add(B(B, Player::P2), Name::DIVE, Player::P2);
+    add(B(B, Player::P2), Name::DIVE, Player::P2);
+    add(B(X, Player::P2), Name::DIVE, Player::P2);
+    add(B(Y, Player::P2), Name::DIVE, Player::P2);
     add(B(RIGHTSHOULDER, Player::P2), Name::SHOOT, Player::P2);
 
     {
@@ -311,12 +380,18 @@ void update(f32 delta) {
     static f32 offset = 0.75;
     positions[2] = (positions[0] + positions[1]) / 2 + V2(0, offset);
 
-    Renderer::Camera to = Renderer::camera_fit(LEN(positions), positions, 0.5);
+    Renderer::Camera to = Renderer::camera_fit(LEN(positions), positions, 1.0);
     *Renderer::get_camera(0) = camera_lerp(*Renderer::get_camera(0), to, delta * 2);
+    bullet_particles.update(delta);
+    land_particles.update(delta);
+    hit_particles.update(delta);
 }
 
 // Main draw
 void draw() {
+    bullet_particles.draw();
+    land_particles.draw();
+    hit_particles.draw();
     Renderer::push_rectangle(0, grounds[0].position, grounds[0].scale);
     Renderer::push_rectangle(0, grounds[1].position, grounds[1].scale);
 }
