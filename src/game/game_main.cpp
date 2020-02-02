@@ -119,8 +119,6 @@ void Robot::update(f32 delta) {
     movement *= ABS(movement);
     movement = CLAMP(-1.0, 1.0, movement);
 
-    Util::tweak("movement", &movement);
-    Util::tweak("acc", &acc);
     body.velocity += V2(movement * delta * speed, -gravity * delta);
     body.velocity.x *= pow(0.01, delta);
     Physics::integrate(&body, delta);
@@ -270,20 +268,6 @@ void setup() {
             V2(0, 1),
             V2(1, 0),
         };
-        /*
-        triangle_shape = Physics::add_shape(LEN(points), points);
-        grounds[1] = Physics::create_body(triangle_shape, 0.0);
-        grounds[1].scale.x = 2;
-        grounds[1].scale.y = 2;
-        grounds[1].position.x = -3.0;
-        grounds[1].position.y = -1.0;
-
-        grounds[2] = Physics::create_body(triangle_shape, 0.0);
-        grounds[2].scale.x = 2;
-        grounds[2].scale.y = 2;
-        grounds[2].position.x = 3.0;
-        grounds[2].position.y = -1.0;
-        */
 
         grounds[1] = Physics::create_body(rect_shape, 0.0);
         grounds[1].scale.x = 2;
@@ -325,7 +309,6 @@ void update(f32 delta) {
     }
 
     static f32 offset = 0.75;
-    Util::tweak("offset", &offset);
     positions[2] = (positions[0] + positions[1]) / 2 + V2(0, offset);
 
     Renderer::Camera to = Renderer::camera_fit(LEN(positions), positions, 0.5);
@@ -336,10 +319,6 @@ void update(f32 delta) {
 void draw() {
     Renderer::push_rectangle(0, grounds[0].position, grounds[0].scale);
     Renderer::push_rectangle(0, grounds[1].position, grounds[1].scale);
-
-    for (u32 i = 0; i < LEN(spawn_points); i++) {
-        Renderer::push_point(0, spawn_points[i], V4(1, 0, 0, 1));
-    }
 }
 
 }  // namespace Game

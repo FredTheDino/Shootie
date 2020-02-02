@@ -366,7 +366,7 @@ bool init(const char *title, int width, int height) {
         sprite_render_queues[i].create(512);
     }
     font_render_queue.create(256);
-    
+
     // Initalize texture indicies
     for (u32 i = 0; i < OPENGL_NUM_CAMERAS; i++)
         _fog_texture_indicies[i] = i;
@@ -396,7 +396,7 @@ bool init(const char *title, int width, int height) {
     glActiveTexture(GL_TEXTURE0);
 
     // Set initial state
-    glClearColor(0.3f, 0.1f, 0.2f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     return true;
 }
 
@@ -560,7 +560,6 @@ void blit() {
 
     for (u32 cam = 0; cam < OPENGL_NUM_CAMERAS; cam++) {
         glBindFramebuffer(GL_FRAMEBUFFER, screen_fbos[cam]);
-        glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         clear();
         u32 bit = (cam == 0) ? 1 : (1 << cam);
         if (!(_fog_active_cameras & bit)) continue;
@@ -578,7 +577,6 @@ void blit() {
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClearColor(0.1f, 0.3f, 0.2f, 1.0f);
     clear();
     render_post_processing();
     // TODO(ed): This is where screen space reflections can be rendered.
