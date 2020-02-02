@@ -5,6 +5,8 @@
 
 namespace Game {
 
+u32 score[2];
+
 const Vec4 BULLET_COLOR = V4(0.8, 0.3, 0.8, 1.0);
 const Vec4 PLAYER_COLORS[] = {
     V4(0.3, 0.3, 0.8, 1.0),
@@ -211,6 +213,7 @@ void Robot::update(f32 delta) {
         if (Physics::check_overlap(&bullet->body, &this->body)) {
             bullet->destroy();
             Logic::remove_entity(this->id);
+            score[((u32) this->player) >> 1] += 1;
         }
         return false;
     };
@@ -229,8 +232,6 @@ void entity_registration() {
 
 Logic::EntityID player1;
 Logic::EntityID player2;
-
-u32 score[2];
 
 Vec2 spawn_points[] = {
     V2(-2, -0.4),
@@ -403,6 +404,7 @@ void update(f32 delta) {
     bullet_particles.update(delta);
     land_particles.update(delta);
     hit_particles.update(delta);
+    LOG("%d, %d", score[0], score[1]);
 }
 
 // Main draw
